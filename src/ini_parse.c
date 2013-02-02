@@ -259,7 +259,7 @@ ini_data_st* ini_init(const char *file_name)
 }
 
 // For test purposes
-void print_file(ini_data_st *data)
+void ini_print(ini_data_st *data)
 {
   ini_section_st *sec = data->head;
   ini_property_st *prop;

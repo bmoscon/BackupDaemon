@@ -1,8 +1,8 @@
 /*
- * ini_parse.h
+ * ini_test.c
  *
- * Parses an INI file into a liniked list
- * 
+ *
+ * test INI parsing
  *
  *
  * Copyright (C) 2013  Bryant Moscon - bmoscon@gmail.com
@@ -47,37 +47,28 @@
  */
 
 
-#ifndef __INI_PARSE__
-#define __INI_PARSE__
+#include <stdio.h>
+#include <stdlib.h>
 
-typedef struct ini_property_st {
-  char* name;
-  char* value;
+#include "../src/ini_parse.h"
+
+
+int main(int argc, char *argv[])
+{
+  ini_data_st *data;
   
-  struct ini_property_st *next;
-} ini_property_st;
+  if (argc != 2) {
+    fprintf(stderr, "usage: ini_test <INI filename>\n");
+    exit(1);
+  }
 
-
-
-typedef struct ini_section_st {
-  char* name;
-  ini_property_st *property;
   
-  struct ini_section_st *next;
-} ini_section_st;
-
-typedef struct ini_data_st {
-  int num_sections;
-  int num_properties;
+  data = ini_init(argv[1]);
   
-  ini_section_st *head;
-  
-} ini_data_st;
+  if (data) {
+    ini_print(data);
+    ini_free(data);
+  }
 
-
-
-void ini_free(ini_data_st *data);
-ini_data_st* ini_init(const char *file_name); 
-void ini_print(ini_data_st *data);
-
-#endif
+  return (0);
+}
