@@ -168,11 +168,11 @@ ini_data_st* ini_init(const char *file_name)
   curr->property = NULL;
   
   while (fgets(line, sizeof(line), fp) != NULL) {
-    char *c = &line[0];
+    char c = line[0];
     ++line_num;
 
-    if (*c != ';' && *c != '[' && *c != '\n') {
-      if (parse_section_flag && (isalpha(*c) || isdigit(*c))) {
+    if (c != ';' && c != '[' && c != '\n') {
+      if (parse_section_flag && (isalpha(c) || isdigit(c))) {
 	char *ptr;
 
 	curr_p = malloc(sizeof(ini_property_st));
@@ -223,7 +223,7 @@ ini_data_st* ini_init(const char *file_name)
 	ini_free(ret);
 	return (NULL);
       }
-    } else if (*c == '[') {
+    } else if (c == '[') {
       char *ptr;
       parse_section_flag = 0;
       
