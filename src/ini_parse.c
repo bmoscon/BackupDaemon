@@ -146,13 +146,20 @@ ini_data_st* ini_init(const char *file_name)
   }
 
   ret = malloc(sizeof(ini_data_st));
-  ret->num_sections = 0;
-  ret->num_properties = 0;
-
-  ret->head = malloc(sizeof(ini_section_st));
   if (!ret) {
     perror("malloc failed");
     fclose(fp);
+    return (NULL);
+  }
+  
+  ret->num_sections = 0;
+  ret->num_properties = 0;
+  
+  ret->head = malloc(sizeof(ini_section_st));
+  if (!ret->head) {
+    perror("malloc failed");
+    fclose(fp);
+    free(ret);
     return (NULL);
   }
   curr = ret->head;
