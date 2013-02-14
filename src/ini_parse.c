@@ -134,7 +134,7 @@ ini_data_st* ini_init(const char *file_name)
   int parse_section_flag = 0;
   
   if (!file_name) {
-    fprintf(stderr, "invalid file name\n");
+    fprintf(stderr, "%d: invalid file name\n", __LINE__);
     return (NULL);
   }
   
