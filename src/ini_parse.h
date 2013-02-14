@@ -50,13 +50,13 @@
 #ifndef __INI_PARSE__
 #define __INI_PARSE__
 
+
 typedef struct ini_property_st {
   char* name;
   char* value;
   
   struct ini_property_st *next;
 } ini_property_st;
-
 
 
 typedef struct ini_section_st {
@@ -66,6 +66,7 @@ typedef struct ini_section_st {
   struct ini_section_st *next;
 } ini_section_st;
 
+
 typedef struct ini_data_st {
   int num_sections;
   int num_properties;
@@ -73,7 +74,6 @@ typedef struct ini_data_st {
   ini_section_st *head;
   
 } ini_data_st;
-
 
 
 void ini_free(ini_data_st *data);
