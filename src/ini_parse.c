@@ -49,6 +49,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "ini_parse.h"
 
@@ -134,20 +135,20 @@ ini_data_st* ini_init(const char *file_name)
   int parse_section_flag = 0;
   
   if (!file_name) {
-    fprintf(stderr, "%d: invalid file name\n", __LINE__);
+    fprintf(stderr, "%d - invalid file name\n", __LINE__);
     return (NULL);
   }
   
   fp = fopen(file_name, "r");
   
   if (!fp) {
-    perror("file open failed");
+    fprintf(stderr, "%d - file open failed: %s\n", __LINE__, strerror(errno));
     return (NULL);
   }
 
   ret = malloc(sizeof(ini_data_st));
   if (!ret) {
-    perror("malloc failed");
+    fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
     fclose(fp);
     return (NULL);
   }
@@ -157,7 +158,7 @@ ini_data_st* ini_init(const char *file_name)
   
   ret->head = malloc(sizeof(ini_section_st));
   if (!ret->head) {
-    perror("malloc failed");
+    fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
     fclose(fp);
     free(ret);
     return (NULL);
@@ -177,7 +178,7 @@ ini_data_st* ini_init(const char *file_name)
 
 	curr_p = malloc(sizeof(ini_property_st));
 	if (!curr_p) {
-	  perror("malloc failed");
+	  fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
 	  fclose(fp);
 	  ini_free(ret);
 	  return (NULL);
@@ -230,7 +231,7 @@ ini_data_st* ini_init(const char *file_name)
       if (curr == NULL) {
 	curr = malloc(sizeof(ini_section_st));
 	if (!curr) {
-	  perror("malloc failed");
+	  fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
 	  fclose(fp);
 	  ini_free(ret);
 	  return (NULL);
