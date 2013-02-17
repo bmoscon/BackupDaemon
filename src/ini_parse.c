@@ -52,6 +52,24 @@
 #include <errno.h>
 
 #include "ini_parse.h"
+#include "hash_set.h"
+
+
+/* simple checksum for use in the hash set */
+static uint32_t chksum(void *str) 
+{
+  char *s = (char *)str;
+  int len = strlen(s);
+  int i;
+  uint32_t c = 0;
+
+  for (i = 0; i < len; ++i) {
+    c = (c >> 1) + ((c & 1) << (32-1));
+    c += s[i];
+  }
+  return (c);
+}
+
 
 
 /* ini_free - frees the INI linked list
@@ -68,9 +86,20 @@ void ini_free(ini_data_st *data)
   ini_property_st *prop;
   ini_property_st *last_prop;
 
+
   if (data) {
     sec = data->head;
+    prop = data->global;
     free(data);
+  }
+
+  // free global properties
+  while (prop) {
+    free(prop->name);
+    free(prop->value);
+    last_prop = prop;
+    prop = prop->next;
+    free(last_prop);
   }
 
   while (sec) {
@@ -103,12 +132,18 @@ void ini_free(ini_data_st *data)
  *
  * Expected INI file structure:
  * 
- * Legal lines begin with ';', '[' or are empty lines. 
- * Anything else will cause a parse error. Section heads
+ * Legal lines cannot being with a space. Doing so will 
+ * cause a parse error. Section heads
  * are enclosed in [] and are followed by name/vaue pairs, 
  * separated by ='s
  *
+ * Properties are allowed before the sections begin. These
+ * will becom "global" properties
+ *
+ *
  * example:
+ *
+ * global_property=global_val
  *
  * [SECTION]
  * name1=value1
@@ -132,7 +167,8 @@ ini_data_st* ini_init(const char *file_name)
   ini_section_st *curr = NULL;
   ini_property_st *curr_p = NULL;
   ini_property_st *prev_p = NULL;
-  int parse_section_flag = 0;
+
+  hash_set_st *sset = NULL, *pset = NULL;
   
   if (!file_name) {
     fprintf(stderr, "%d - invalid file name\n", __LINE__);
@@ -155,33 +191,53 @@ ini_data_st* ini_init(const char *file_name)
   
   ret->num_sections = 0;
   ret->num_properties = 0;
+  ret->global = NULL;
   
   ret->head = malloc(sizeof(ini_section_st));
   if (!ret->head) {
     fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
-    fclose(fp);
-    free(ret);
-    return (NULL);
+    ini_free(ret);
+    ret = NULL;
+    goto cleanup;
   }
   curr = ret->head;
   curr->name = NULL;
   curr->next = NULL;
   curr->property = NULL;
+
+  pset = hash_set_init(256, chksum);
+  sset = hash_set_init(256, chksum);
+  if (!pset) {
+    fprintf(stderr, "%d - hash_set_init failed!\n", __LINE__);
+    ini_free(ret);
+    ret = NULL;
+    goto cleanup;
+  }
+
+  if (!sset) {
+    fprintf(stderr, "%d - hash_set_init failed!\n", __LINE__);
+    ini_free(ret);
+    ret = NULL;
+    goto cleanup;
+  }
+
+
   
   while (fgets(line, sizeof(line), fp) != NULL) {
     char c = line[0];
     ++line_num;
 
     if (c != ';' && c != '[' && c != '\n') {
-      if (parse_section_flag && (isalpha(c) || isdigit(c))) {
+      if (isalpha(c) || isdigit(c)) {
 	char *ptr;
 
 	curr_p = malloc(sizeof(ini_property_st));
+	
 	if (!curr_p) {
 	  fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
-	  fclose(fp);
 	  ini_free(ret);
-	  return (NULL);
+	  ret = NULL;
+	  goto cleanup;
 	}
 	
 	curr_p->name = NULL;
@@ -190,6 +246,9 @@ ini_data_st* ini_init(const char *file_name)
 	
 	if (prev_p) {
 	  prev_p->next = curr_p;
+	} else if (ret->head->name == NULL) {
+	  // we must be filling global properties
+	  ret->global = curr_p;
 	} else {
 	  prev->property = curr_p;
 	}
@@ -197,19 +256,27 @@ ini_data_st* ini_init(const char *file_name)
 	ptr = strtok(line, "=");
 	if (!ptr) {
 	  fprintf(stderr, "parse error on line: %d\n", line_num);
-	  fclose(fp);
 	  ini_free(ret);
-	  return (NULL);
+	  ret = NULL;
+	  goto cleanup;
 	}
 	
 	curr_p->name = strdup(ptr);
+	if (hash_set_exists(pset, curr_p->name)) {
+	  fprintf(stderr, "property already set - parse error on line: %d\n", line_num);
+	  ini_free(ret);
+	  ret = NULL;
+	  goto cleanup;
+	}
+	hash_set_insert(pset, curr_p->name);
 	ptr = strtok(NULL, "\n; ");
+	
 	
 	if (!ptr) {
 	  fprintf(stderr, "parse error on line: %d\n", line_num);
-	  fclose(fp);
 	  ini_free(ret);
-	  return (NULL);
+	  ret = NULL;
+	  goto cleanup;
 	}
 
 	curr_p->value = strdup(ptr);
@@ -220,21 +287,23 @@ ini_data_st* ini_init(const char *file_name)
 	ret->num_properties++;
       } else {
 	fprintf(stderr, "parse error on line: %d\n", line_num);
-	fclose(fp);
 	ini_free(ret);
-	return (NULL);
+	ret = NULL;
+	goto cleanup;
       }
     } else if (c == '[') {
       char *ptr;
-      parse_section_flag = 0;
+      
+      // reset the property hash set
+      hash_set_clear(pset);
       
       if (curr == NULL) {
 	curr = malloc(sizeof(ini_section_st));
 	if (!curr) {
 	  fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
-	  fclose(fp);
 	  ini_free(ret);
-	  return (NULL);
+	  ret = NULL;
+	  goto cleanup;
 	}
 	prev->next = curr;
 	curr->name = NULL;
@@ -246,14 +315,20 @@ ini_data_st* ini_init(const char *file_name)
 
       if (!ptr) {
 	fprintf(stderr, "parse error on line: %d\n", line_num);
-	fclose(fp);
 	ini_free(ret);
-	return (NULL);
+	ret = NULL;
+	goto cleanup;
       }
 
       curr->name = strdup(ptr);
+      if (hash_set_exists(sset, curr->name)) {
+	fprintf(stderr, "section already exists - parse error on line: %d\n", line_num);
+	ini_free(ret);
+	ret = NULL;
+	goto cleanup;
+      }
+      hash_set_insert(sset, curr->name);
       ret->num_sections++;
-      parse_section_flag = 1;
 
       prev = curr;
       curr = NULL;
@@ -262,6 +337,10 @@ ini_data_st* ini_init(const char *file_name)
     memset(line, 0, sizeof(line));
   }
 
+
+cleanup:
+  hash_set_free(sset);
+  hash_set_free(pset);
   fclose(fp);
   return (ret);
 }
@@ -272,6 +351,13 @@ void ini_print(ini_data_st *data)
   ini_section_st *sec = data->head;
   ini_property_st *prop;
 
+  prop = data->global;
+  
+  while (prop) {
+    printf("%s=%s\n", prop->name, prop->value);
+    prop = prop->next;
+  }
+  
   while (sec) {
     printf("[%s]\n", sec->name);
     prop = sec->property;
