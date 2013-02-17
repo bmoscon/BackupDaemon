@@ -70,14 +70,26 @@ typedef struct ini_section_st {
 typedef struct ini_data_st {
   int num_sections;
   int num_properties;
+
+  ini_property_st *iter;
   
   ini_section_st *head;
+  ini_property_st *global;
   
 } ini_data_st;
+
+
+typedef struct ini_pair {
+  char *n;
+  char *v;
+} ini_pair;
 
 
 void ini_free(ini_data_st *data);
 ini_data_st* ini_init(const char *file_name); 
 void ini_print(ini_data_st *data);
 
+char *ini_get_data(ini_data_st *data, char *sec, char *prop);
+ini_pair ini_iter_init(ini_data_st *data, char *sec);
+ini_pair ini_iter_next(ini_data_st *data);
 #endif

@@ -193,6 +193,8 @@ ini_data_st* ini_init(const char *file_name)
   
   ret->num_sections = 0;
   ret->num_properties = 0;
+  ret->head = NULL;
+  ret->iter = NULL;
   ret->global = NULL;
   
   ret->head = malloc(sizeof(ini_section_st));
@@ -356,6 +358,94 @@ cleanup:
   fclose(fp);
   return (ret);
 }
+
+
+char *ini_get_data(ini_data_st *data, char *sec, char *prop)
+{
+  ini_section_st *s;
+  ini_property_st *p;
+  
+  if (!data || !prop) {
+    return (NULL);
+  }
+
+  if (sec == NULL) {
+    p = data->global;
+  } else {
+    
+    s = data->head;
+
+    while (s && (strcmp(s->name, sec) != 0)) {
+      s = s->next;
+    }
+    
+    if (!s) {
+    // matching section name not found
+      return (NULL);
+    }
+    
+    p = s->property;
+  }
+  
+  while(p && (strcmp(p->name, prop) != 0)) {
+    p = p->next;
+  }
+  
+  if (!p) {
+    // matching property not found
+    return (NULL);
+  }
+  
+  return (p->value);
+}
+
+
+ini_pair ini_iter_init(ini_data_st *data, char *sec)
+{
+  ini_section_st *s;
+  ini_pair ret = {NULL, NULL};
+  
+  if (!data || !sec) {
+    return (ret);
+  }
+
+  s = data->head;
+
+  while (s && (strcmp(s->name, sec) != 0)) {
+    s = s->next;
+  }
+  
+  if (!s) {
+    // matching section name not found
+    return (ret);
+  }
+    
+  data->iter = s->property;
+  ret.n = data->iter->name;
+  ret.v = data->iter->value;
+  
+  return (ret);
+}
+
+ini_pair ini_iter_next(ini_data_st *data)
+{
+  ini_pair ret = {NULL, NULL};
+
+  if (!data) {
+    return (ret);
+  }
+
+  data->iter = data->iter->next;
+  if (!data->iter) {
+    return (ret);
+  }
+
+  ret.n = data->iter->name;
+  ret.v = data->iter->value;
+  
+  return (ret);
+}
+
 
 // For test purposes
 void ini_print(ini_data_st *data)

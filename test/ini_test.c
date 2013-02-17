@@ -56,6 +56,9 @@
 int main(int argc, char *argv[])
 {
   ini_data_st *data;
+  char *sec = "section6";
+  char *prop = "p1";
+  ini_pair pair;
   
   if (argc != 2) {
     fprintf(stderr, "usage: ini_test <INI filename>\n");
@@ -67,6 +70,23 @@ int main(int argc, char *argv[])
   
   if (data) {
     ini_print(data);
+
+    printf("\n\nSearching for section %s, property %s: %s\n", sec, prop, 
+	                                                        ini_get_data(data, sec, prop));
+    printf("\nSearching for global property %s: %s\n\n", prop, 
+	                                                   ini_get_data(data, NULL, prop));
+
+    printf("testing iterator, printing list of all properties in \"section2\":\n");
+    
+    pair = ini_iter_init(data, "section2");
+    printf("%s = %s\n", pair.n, pair.v);
+    
+    pair = ini_iter_next(data);
+    while (pair.n) {
+      printf("%s = %s\n", pair.n, pair.v);
+      pair = ini_iter_next(data);
+    }
+      
     ini_free(data);
   }
 
