@@ -86,13 +86,14 @@ void ini_free(ini_data_st *data)
   ini_property_st *prop;
   ini_property_st *last_prop;
 
-
-  if (data) {
-    sec = data->head;
-    prop = data->global;
-    free(data);
+  if (!data) {
+    return;
   }
 
+  sec = data->head;
+  prop = data->global;
+  free(data);
+  
   // free global properties
   while (prop) {
     free(prop->name);
@@ -167,6 +168,7 @@ ini_data_st* ini_init(const char *file_name)
   ini_section_st *curr = NULL;
   ini_property_st *curr_p = NULL;
   ini_property_st *prev_p = NULL;
+  int error_flag = 0;
 
   hash_set_st *sset = NULL, *pset = NULL;
   
@@ -185,8 +187,8 @@ ini_data_st* ini_init(const char *file_name)
   ret = malloc(sizeof(ini_data_st));
   if (!ret) {
     fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
-    fclose(fp);
-    return (NULL);
+    error_flag = 1;
+    goto cleanup;
   }
   
   ret->num_sections = 0;
@@ -196,8 +198,7 @@ ini_data_st* ini_init(const char *file_name)
   ret->head = malloc(sizeof(ini_section_st));
   if (!ret->head) {
     fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
-    ini_free(ret);
-    ret = NULL;
+    error_flag = 1;
     goto cleanup;
   }
   curr = ret->head;
@@ -209,15 +210,13 @@ ini_data_st* ini_init(const char *file_name)
   sset = hash_set_init(256, chksum);
   if (!pset) {
     fprintf(stderr, "%d - hash_set_init failed!\n", __LINE__);
-    ini_free(ret);
-    ret = NULL;
+    error_flag = 1;
     goto cleanup;
   }
 
   if (!sset) {
     fprintf(stderr, "%d - hash_set_init failed!\n", __LINE__);
-    ini_free(ret);
-    ret = NULL;
+    error_flag = 1;
     goto cleanup;
   }
 
@@ -235,8 +234,7 @@ ini_data_st* ini_init(const char *file_name)
 	
 	if (!curr_p) {
 	  fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
-	  ini_free(ret);
-	  ret = NULL;
+	  error_flag = 1;
 	  goto cleanup;
 	}
 	
@@ -256,16 +254,20 @@ ini_data_st* ini_init(const char *file_name)
 	ptr = strtok(line, "=");
 	if (!ptr) {
 	  fprintf(stderr, "parse error on line: %d\n", line_num);
-	  ini_free(ret);
-	  ret = NULL;
+	  error_flag = 1;
 	  goto cleanup;
 	}
 	
 	curr_p->name = strdup(ptr);
+	if (!curr_p->name) {
+	  fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
+	  error_flag = 1;
+	  goto cleanup;
+	}
+	
 	if (hash_set_exists(pset, curr_p->name)) {
 	  fprintf(stderr, "property already set - parse error on line: %d\n", line_num);
-	  ini_free(ret);
-	  ret = NULL;
+	  error_flag = 1;
 	  goto cleanup;
 	}
 	hash_set_insert(pset, curr_p->name);
@@ -274,12 +276,16 @@ ini_data_st* ini_init(const char *file_name)
 	
 	if (!ptr) {
 	  fprintf(stderr, "parse error on line: %d\n", line_num);
-	  ini_free(ret);
-	  ret = NULL;
+	  error_flag = 1;
 	  goto cleanup;
 	}
 
 	curr_p->value = strdup(ptr);
+	if (!curr_p->value) {
+	  fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
+	  error_flag = 1;
+	  goto cleanup;
+	}
 
 	prev_p = curr_p;
 	curr_p = NULL;
@@ -287,8 +293,7 @@ ini_data_st* ini_init(const char *file_name)
 	ret->num_properties++;
       } else {
 	fprintf(stderr, "parse error on line: %d\n", line_num);
-	ini_free(ret);
-	ret = NULL;
+	error_flag = 1;
 	goto cleanup;
       }
     } else if (c == '[') {
@@ -301,8 +306,7 @@ ini_data_st* ini_init(const char *file_name)
 	curr = malloc(sizeof(ini_section_st));
 	if (!curr) {
 	  fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
-	  ini_free(ret);
-	  ret = NULL;
+	  error_flag = 1;
 	  goto cleanup;
 	}
 	prev->next = curr;
@@ -315,16 +319,20 @@ ini_data_st* ini_init(const char *file_name)
 
       if (!ptr) {
 	fprintf(stderr, "parse error on line: %d\n", line_num);
-	ini_free(ret);
-	ret = NULL;
+	error_flag = 1;
 	goto cleanup;
       }
 
       curr->name = strdup(ptr);
+      if (!curr->name) {
+	fprintf(stderr, "%d - malloc failed: %s\n", __LINE__, strerror(errno));
+	error_flag = 1;
+	goto cleanup;
+      }
+      
       if (hash_set_exists(sset, curr->name)) {
 	fprintf(stderr, "section already exists - parse error on line: %d\n", line_num);
-	ini_free(ret);
-	ret = NULL;
+	error_flag = 1;
 	goto cleanup;
       }
       hash_set_insert(sset, curr->name);
@@ -339,6 +347,10 @@ ini_data_st* ini_init(const char *file_name)
 
 
 cleanup:
+  if (error_flag) {
+    ini_free(ret);
+    ret = NULL;
+  }
   hash_set_free(sset);
   hash_set_free(pset);
   fclose(fp);
