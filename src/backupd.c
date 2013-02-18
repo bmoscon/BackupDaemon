@@ -98,20 +98,24 @@ void monitor_fs(char *cfg_file)
     if (ret < 0) {
       exit(1);
     } else if (!ret) {
-      
+      exit(1);
     } else if (FD_ISSET (fd, &descript)) {
       char buf[1024 * sizeof(struct inotify_event)];
       int len, i = 0;
       
       len = read (fd, buf, 1024 * sizeof(struct inotify_event));
       if (len < 0) {
-	if (errno == EINTR)
-	  /* need to reissue system call */
+	if (errno == EINTR) {
+	  // syscall was interrupted, reissue call
+	  continue;
+	} else {
+	  // some other error
 	  exit(1);
-	else
-	  exit(1);
-      } else if (!len)
+	} 
+      } else if (!len) {
+	// this shouldnt happen. if it does...blow up
 	exit(1);
+      }
       
       while (i < len) {
 	struct inotify_event *event;
@@ -168,7 +172,7 @@ void monitor_fs(char *cfg_file)
 	
 	i += sizeof(struct inotify_event) + event->len;
       }
-    }
+    } 
     
   }
   
