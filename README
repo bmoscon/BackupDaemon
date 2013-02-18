@@ -1,1 +1,25 @@
 Backup Daemon, written in C
+
+
+Loads config from an INI file, specified as the 2nd command line arg.
+
+ex: backupd /home/user/backupd.ini
+
+backupd expects to find two sections, one labeled SOURCE DIR, the other DESTINATION DIR. Each of 
+these should contain one property, PATH which corresponds to the path to either watch or 
+backup to, respectively. 
+
+An example is presented for clarity.
+
+; a backupd ini file
+[SOURCE DIR]
+PATH=/home/user/important_dir
+
+[DESTINATION DIR]
+PATH=/home/user/backup_mount
+
+
+
+As files are modified, created, etc in the source directory, the changes will be appropriately
+reflected in the destination directory.
+
