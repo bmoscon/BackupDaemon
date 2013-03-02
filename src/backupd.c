@@ -143,7 +143,7 @@ void monitor_fs(char *cfg_file)
 	  
 	  int in_fd = open(in_file_name, O_RDONLY);
 	  assert(in_fd >= 0);
-	  int out_fd = open(out_file_name, O_WRONLY | O_CREAT);
+	  int out_fd = open(out_file_name, O_WRONLY | O_CREAT, S_IRWXU);
 	  
 	  assert(out_fd >= 0);
 	  

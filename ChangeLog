@@ -1,0 +1,7 @@
+March 2, 2013 - 0.1.0
+
+	+ Change build system to use GNU Autotools. 
+	+ Fix bug in call to open (missing 3rd argument, mode, which is required 
+	  when flag O_CREAT is used.
+	+ Creation of changelog
+	
