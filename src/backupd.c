@@ -38,10 +38,16 @@ int is_daemon_running()
       exit(1);
     }
     
-    ftruncate(fd, 0);
+    if (ftruncate(fd, 0) < 0) {
+      perror("ftruncate failed");
+      exit(1);
+    }
     
     sprintf(buf, "%ld", (long)getpid());
-    write(fd, buf, strlen(buf)+1);
+    if (write(fd, buf, strlen(buf)+1) < 0) {
+      perror("write failed");
+      exit(1);
+    }
     
     return (0);
 }
@@ -161,7 +167,7 @@ void monitor_fs(char *cfg_file)
 	  
 	  struct stat fst;
 	  stat(in_file_name,&fst);
-	  chown(out_file_name,fst.st_uid,fst.st_gid); 
+	  assert(chown(out_file_name,fst.st_uid,fst.st_gid) == 0);
 	  chmod(out_file_name,fst.st_mode);
 	  break;
 	}
@@ -206,11 +212,15 @@ int main(int argc, char* argv[])
     exit(1);
   }
 
-  chdir("/");
+  if (chdir("/") < 0) {
+    perror("chdir failed");
+    exit(1);
+  }
 
   // check to see if we are already running
   if (is_daemon_running()) {
-    exit(1);
+    fprintf(stderr, "backupd already running\n");
+    exit(0);
   }
 
   // by this point we will no longer log anything to stdout/stderr and we will not take in any
