@@ -272,7 +272,11 @@ ini_data_st* ini_init(const char *file_name)
 	  error_flag = 1;
 	  goto cleanup;
 	}
-	hash_set_insert(pset, curr_p->name);
+	if (hash_set_insert(pset, curr_p->name) != 0) {
+	  fprintf(stderr, "%d - hash_set_insert failed\n", __LINE__);
+	  error_flag = 1;
+	  goto cleanup;
+	}
 	ptr = strtok(NULL, "\n; ");
 	
 	
@@ -337,7 +341,11 @@ ini_data_st* ini_init(const char *file_name)
 	error_flag = 1;
 	goto cleanup;
       }
-      hash_set_insert(sset, curr->name);
+      if (hash_set_insert(sset, curr->name) != 0) {
+	fprintf(stderr, "%d - hash_set_insert failed\n", __LINE__);
+	error_flag = 1;
+	goto cleanup;
+      }
       ret->num_sections++;
 
       prev = curr;

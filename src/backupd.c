@@ -95,7 +95,7 @@ void monitor_fs(char *cfg_file)
   
   while (1) {
     
-    time.tv_sec = 5;
+    time.tv_sec = 1;
     time.tv_usec = 0;
     
     FD_SET (fd, &descript);
@@ -104,7 +104,8 @@ void monitor_fs(char *cfg_file)
     if (ret < 0) {
       exit(1);
     } else if (!ret) {
-      exit(1);
+      // nothing happened, but we timed out in select
+      continue;
     } else if (FD_ISSET (fd, &descript)) {
       char buf[1024 * sizeof(struct inotify_event)];
       int len, i = 0;

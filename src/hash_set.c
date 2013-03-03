@@ -57,12 +57,18 @@ hash_set_st* hash_set_init(size_t size, uint32_t (*hash_fp)(void *))
   assert(size > 0);
 
   ret = (hash_set_st *)malloc(sizeof(hash_set_st));
+  if (!ret) {
+    return (NULL);
+  }
   
   ret->entries = 0;
   ret->overflow = 0;
   ret->hash_fp = hash_fp;
   ret->len = size;
   ret->array = calloc(size, sizeof(bucket_st));
+  if (!ret->array) {
+    return (NULL);
+  }
 
   return (ret);
 }
@@ -89,7 +95,7 @@ void hash_set_free(hash_set_st *set)
   free(set);
 }
 
-void hash_set_insert(hash_set_st *set, void *val)
+int hash_set_insert(hash_set_st *set, void *val)
 {
   uint32_t hash;
   uint32_t index;
@@ -108,6 +114,11 @@ void hash_set_insert(hash_set_st *set, void *val)
     
     if (set->array[index].next == NULL) {
       set->array[index].next = malloc(sizeof(bucket_st));
+      
+      if (! set->array[index].next) {
+	return (-1);
+      }
+      
       set->array[index].next->hash = hash;
       set->array[index].next->next = NULL;
       ++set->overflow;
@@ -129,12 +140,19 @@ void hash_set_insert(hash_set_st *set, void *val)
       }
       
       b->next = malloc(sizeof(bucket_st));
+
+      if (!b->next) {
+	return (-1);
+      }
+
       b->next->hash = hash;
       b->next->next = NULL;
       ++set->overflow;
     }
   }
   ++set->entries;
+
+  return (0);
 }
 
 int hash_set_exists(hash_set_st *set, void *val)
