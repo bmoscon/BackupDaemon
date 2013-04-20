@@ -1,5 +1,11 @@
 Backup Daemon, written in C
 
+To compile:
+./autogen.sh
+./configure
+make
+
+
 
 Loads config from an INI file, specified as the 2nd command line arg.
 

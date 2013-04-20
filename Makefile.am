@@ -1,3 +1,4 @@
+EXTRA_DIST = autogen.sh
 AM_CCFLAGS=-Wall -g
 
 bin_PROGRAMS=bin/backupd
