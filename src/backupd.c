@@ -252,7 +252,7 @@ int main(int argc, char* argv[])
   pid_t pid = 0;
   pid_t sid = 0;
 
-  if (argc != 2) {
+  if (argc < 2) {
     usage();
   }
 
