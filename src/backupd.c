@@ -9,15 +9,75 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
+#include <signal.h>
 
 #include "ini_parse.h"
 
 #define LOCK_FILE "/var/run/backupd.pid"
 
+static int fd;
+
+
+
+static void usage()
+{
+  fprintf(stderr, "usage: backupd <start | stop> <config file>\n");
+  exit(1);
+}
+
+
+static pid_t get_daemon_pid()
+{
+  FILE *fp;
+  pid_t pid;
+
+  fp = fopen(LOCK_FILE,"r");
+  
+  if (!fp) {
+    return (-1);
+  }
+
+  if (fscanf(fp, "%d\n", &pid) != 1) {
+    fprintf(stderr, "Read of pid file failed\n");
+    fclose(fp);
+    return (-1);
+  }
+
+  fclose(fp);
+  return (pid);
+}
+
+static void send_stop()
+{
+  pid_t pid = get_daemon_pid();
+  
+  if (pid == -1) {
+    fprintf(stderr, "stop failed\n");
+    return;
+  }
+  
+  kill(get_daemon_pid(), SIGTERM);
+}
+
+static void cleanup()
+{
+  struct flock file_lock = {F_UNLCK, SEEK_SET, 0, 0, 0};
+  fcntl(fd, F_SETLK, &file_lock);
+  close(fd);
+  remove(LOCK_FILE);
+}
+
+
+void sigterm_handler(int signum)
+{
+  // cleanup and exit
+  cleanup();
+  exit(signum);
+}
+
 
 int is_daemon_running()
 {
-    int     fd;
     char    buf[16];
 
     struct flock file_lock = {F_WRLCK, SEEK_SET, 0, 0, 0};
@@ -193,9 +253,20 @@ int main(int argc, char* argv[])
   pid_t sid = 0;
 
   if (argc != 2) {
-    fprintf(stderr, "usage: backupd <config file>\n");
-    exit(1);
+    usage();
   }
+
+  if (strcmp(argv[1], "stop") == 0) {
+    send_stop();
+    exit(0);
+  } else if (strcmp(argv[1], "start") == 0) {
+    if (argc != 3) {
+      usage();
+    }
+  } else {
+    usage();
+  }
+
 
   if ((pid = fork()) < 0) {
     perror("fork failed");
@@ -224,13 +295,17 @@ int main(int argc, char* argv[])
     exit(0);
   }
 
+  // set up out signal handler
+  signal(SIGTERM, sigterm_handler);
+
+
   // by this point we will no longer log anything to stdout/stderr and we will not take in any
   // user input, so close the respective FDs
   close(STDIN_FILENO);
   close(STDOUT_FILENO);
   close(STDERR_FILENO);
 
-  monitor_fs(argv[1]);
+  monitor_fs(argv[2]);
   
   return (0);
 }
